@@ -52,25 +52,17 @@ lemma coind₁'_ι.app_apply {M : Rep R G} (m : M) (x : G) : (coind₁'_ι.app M
 The map from `M` to its coinduced representation is a monomorphism.
 -/
 instance : Mono (coind₁'_ι.app M) where
-  right_cancellation :=by
+  right_cancellation := by
     intro Z g f hgf
     ext n
-    have l: (g ≫ coind₁'_ι.app M) n = (f ≫ coind₁'_ι.app M) n :=by
-     exact congrFun (congrArg DFunLike.coe (congrArg hom hgf)) n
-    simp at l ⊢
-    have: Function.Injective (hom (coind₁'_ι.app M)):=by
+    have : Function.Injective (hom (coind₁'_ι.app M)) := by
       refine (injective_iff_map_eq_zero' (hom (coind₁'_ι.app M))).mpr (fun a  => ?_)
       constructor
       · intro g
-        simp only [Functor.id_obj, coind₁'_ι, Representation.coind₁'_ι] at a g
-        have:Function.const G a =0 :=by exact g
-        simpa [Function.const_eq_zero] using  this
-      · intro h
-        simp only [h,Functor.id_obj, map_zero]
-    simp only [Functor.id_obj,Function.Injective] at this
-    specialize this l
-    exact this
-
+        have : Function.const G a = 0 := by exact g
+        simpa [Function.const_eq_zero] using this
+      · exact fun a_1 ↦ congrArg (⇑(hom (coind₁'_ι.app M))) a_1
+    exact this (congrFun (congrArg DFunLike.coe (congrArg hom hgf)) n)
 
 /--
 The functor taking `M : Rep R G` to `up.obj M`, defined by the short exact sequence
@@ -85,8 +77,8 @@ of the cohomology of `M`.
   map f:= by
     apply cokernel.desc _ (coind₁'.map f ≫ cokernel.π _)
     rw [←Category.assoc, ←coind₁'_ι.naturality, Category.assoc, cokernel.condition, comp_zero]
-  map_id := sorry
-  map_comp := sorry
+  map_id := by simp
+  map_comp f g := by simpa only using coequalizer.hom_ext (by simp)
 
 /--
 The functor taking `M : Rep R G` to the short complex:
@@ -140,21 +132,16 @@ variable [DecidableEq G]
 The connecting homomorphism from `H⁰(G,up M)` to `H¹(G,M)` is
 an epimorphism (i.e. surjective).
 -/
-instance up_δ_zero_epi : Epi (δ (up_shortExact M) 0 1 rfl) :=
-  /-
-  The next term in the long exact sequence is `H¹(G,coind₁'.obj M)`, which is zero
-  since coinduced representations are acyclic.
-  -/
-  sorry
+instance up_δ_zero_epi : Epi (δ (up_shortExact M) 0 1 rfl) := by
+  refine epi_δ_of_isZero (up_shortExact M) 0 ?_
+  simpa only [upSes_obj_X₂, zero_add] using isZero_of_trivialCohomology
 
 /--
 The connecting homomorphism from `Hⁿ⁺¹(G,up M)` to `Hⁿ⁺²(G,M)` is an isomorphism.
 -/
-instance up_δ_isIso (n : ℕ) : IsIso (δ (up_shortExact M) (n + 1) (n + 2) rfl) :=
-  /-
-  This map is sandwiched between two zeros by `groupCohomology.ofCoind₁`.
-  -/
-  sorry
+instance up_δ_isIso (n : ℕ) : IsIso (δ (up_shortExact M) (n + 1) (n + 2) rfl) := by
+  refine isIso_δ_of_isZero (up_shortExact M) (n + 1) ?_ ?_
+  all_goals simpa only [upSes_obj_X₂] using isZero_of_trivialCohomology
 
 def up_δiso (n : ℕ) : groupCohomology (up.obj M) (n + 1) ≅ groupCohomology M (n + 2) :=
   asIso (δ (up_shortExact M) (n + 1) (n + 2) rfl)
@@ -230,11 +217,9 @@ The connecting homomorphism from `H^{n+1}(G,up M)` to `H^{n+2}(G,M)` is
 an epimorphism (i.e. surjective).
 -/
 instance up_δ_zero_epi_res {S : Type} [Group S] [DecidableEq S] {φ : S →* G}
-    (inj : Function.Injective φ) : Epi (δ (up_shortExact_res M φ) 0 1 rfl) :=
-  /-
-  The next term in the long exact sequence is zero.
-  -/
-  sorry
+    (inj : Function.Injective φ) : Epi (δ (up_shortExact_res M φ) 0 1 rfl) := by
+  refine epi_δ_of_isZero (up_shortExact_res M φ) 0 ?_
+  simpa only [ShortComplex.map_X₂, upSes_obj_X₂, zero_add] using TrivialCohomology.isZero φ inj
 
 /--
 The connecting homomorphism from `H^{n+1}(G,up M)` to `H^{n+2}(G,M)` is an
@@ -242,11 +227,9 @@ isomorphism.
 -/
 instance up_δ_isIso_res {S : Type} [Group S] [DecidableEq S] {φ : S →* G}
     (inj : Function.Injective φ) (n : ℕ) : IsIso (δ (up_shortExact_res M φ) (n + 1) (n + 2) rfl)
-  :=
-  /-
-  This map is sandwiched between two zeros by `groupCohomology.ofCoind₁`.
-  -/
-  sorry
+  := by
+  refine isIso_δ_of_isZero (up_shortExact_res M φ) (n + 1) ?_ ?_
+  all_goals simpa only [ShortComplex.map_X₂, upSes_obj_X₂] using TrivialCohomology.isZero φ inj
 
 def up_δiso_res {S : Type} [Group S] [DecidableEq S] {φ : S →* G}
     (inj : Function.Injective φ) (n : ℕ) :
@@ -272,9 +255,7 @@ def down : Rep R G ⥤ Rep R G where
   map φ := kernel.lift _ (kernel.ι _ ≫ ind₁'.map φ) (by
     rw [Category.assoc, ind₁'_π.naturality, ←Category.assoc, kernel.condition, zero_comp])
   map_id _ := by simp
-  map_comp f g := by
-    simp only [Functor.id_obj, Functor.map_comp]
-    refine equalizer.hom_ext (by simp)
+  map_comp f g := by simpa only using equalizer.hom_ext (by simp)
 
 abbrev down_ses : ShortComplex (Rep R G) where
   X₁ := down.obj M
@@ -336,8 +317,8 @@ variable [Finite G]
 The connecting homomorphism `H⁰(G,down.obj M) ⟶ H¹(G, M)` is an epimorphism if `G` is finite.
 -/
 instance down_δ_zero_epi : Epi (δ (down_shortExact M) 0 1 rfl) := by
-  have := ind₁'_trivialCohomology M
-  sorry
+  refine epi_δ_of_isZero (down_shortExact M) 0 ?_
+  simpa only [zero_add] using isZero_of_trivialCohomology
 
 /--
 The connecting homomorphism `H⁰(H,down.obj M ↓ H) ⟶ H¹(H, M ↓ H)` is an epimorphism if
@@ -345,16 +326,16 @@ The connecting homomorphism `H⁰(H,down.obj M ↓ H) ⟶ H¹(H, M ↓ H)` is an
 -/
 instance down_δ_zero_res_epi {S : Type} [Group S] [DecidableEq S] {φ : S →* G}
     (inj : Function.Injective φ) : Epi (δ (down_shortExact_res M φ) 0 1 rfl) := by
-  have := ind₁'_trivialCohomology M
-  sorry
+  refine epi_δ_of_isZero (down_shortExact_res M φ) 0 ?_
+  simpa only [ShortComplex.map_X₂, zero_add] using TrivialCohomology.isZero φ inj
 
 /--
 The connecting homomorphism `Hⁿ⁺¹(G,down.obj M) ⟶ Hⁿ⁺²(G, M)` is an isomorphism
 if `G` is finite.
 -/
 instance down_δ_isIso  (n : ℕ) : IsIso (δ (down_shortExact M) (n + 1) (n + 2) rfl) := by
-  have := ind₁'_trivialCohomology M
-  sorry
+  refine isIso_δ_of_isZero (down_shortExact M) (n + 1) ?_ ?_
+  all_goals exact isZero_of_trivialCohomology
 
 def down_δiso (n : ℕ) : groupCohomology M (n + 1) ≅ groupCohomology (down.obj M) (n + 2) :=
   asIso (δ (down_shortExact M) (n + 1) (n + 2) rfl)
@@ -398,8 +379,8 @@ NatIso.ofComponents (fun M ↦by simp only [functor_obj, Functor.comp_obj] ; exa
 
 instance down_δ_res_isIso (n : ℕ) {H : Type} [Group H] [DecidableEq H] {φ : H →* G}
     (inj : Function.Injective φ) : IsIso (δ (down_shortExact_res M φ) (n + 1) (n + 2) rfl) := by
-  have := ind₁'_trivialCohomology M
-  sorry
+  refine isIso_δ_of_isZero (down_shortExact_res M φ) (n + 1) ?_ ?_
+  all_goals simpa only [ShortComplex.map_X₂] using TrivialCohomology.isZero φ inj
 
 def down_δiso_res {H : Type} [Group H] [DecidableEq H] {φ : H →* G}
     (inj : Function.Injective φ) (n : ℕ) :
@@ -417,25 +398,29 @@ variable [Finite G]
 open Rep
   dimensionShift
 
+/--
+An explicit version of `isZero_of_trivialTateCohomology`
+-/
+private lemma isZero_of_trivialTateCohomology' [DecidableEq G] (M : Rep R G)
+    [M.TrivialTateCohomology] (n : ℤ) : IsZero ((TateComplexFunctor.obj M).homology n) :=
+  TrivialTateCohomology.isZero (.id G) Function.injective_id
+
 instance instIsIso_up_shortExact (M : Rep R G) [DecidableEq G] (n : ℤ) :
     IsIso (TateCohomology.δ (up_shortExact M) n) := by
   have _ : TrivialTateCohomology (coind₁'.obj M) := inferInstance
-  /-
-  This follows from `TateCohomology_coind₁'`.
-  -/
-  sorry
+  refine ShortComplex.ShortExact.isIso_δ (TateCohomology.cochainsFunctor_Exact (up_shortExact M))
+    n (n + 1) (by rfl) (by simp;exact isZero_of_trivialTateCohomology' (coind₁'.obj M) n)
+    (by simp;exact isZero_of_trivialTateCohomology' (coind₁'.obj M) (n + 1))
 
 instance instIsIso_down_shortExact (M : Rep R G) [DecidableEq G] (n : ℤ) :
     IsIso (TateCohomology.δ (down_shortExact M) n) := by
-  /-
-  This follows from `TateCohomology_coind₁'`.
-  -/
-  sorry
+  have _ : TrivialTateCohomology (ind₁'.obj M) := inferInstance
+  refine ShortComplex.ShortExact.isIso_δ (TateCohomology.cochainsFunctor_Exact (down_shortExact M))
+    n (n + 1) (by rfl) (by simp;exact isZero_of_trivialTateCohomology' (ind₁'.obj M) n)
+    (by simp;exact isZero_of_trivialTateCohomology' (ind₁'.obj M) (n + 1))
 
 def upδiso_Tate (n : ℤ) [DecidableEq G] (M : Rep R G) :
     (TateCohomology n).obj (up.obj M) ≅ (TateCohomology (n + 1)).obj M :=
-  -- typeclass inference spends a long time failing to apply `instIsIso_down_shortExact`
-  -- so let's shortcut the instance
   have := instIsIso_up_shortExact M n
   asIso (TateCohomology.δ (up_shortExact M) n)
 
