@@ -1,5 +1,6 @@
 import Mathlib
 import ClassFieldTheory.GroupCohomology._6_LeftRegular
+import ClassFieldTheory.GroupCohomology._7_coind1_and_ind1
 import ClassFieldTheory.GroupCohomology._8_DimensionShift
 
 /-!
@@ -31,7 +32,7 @@ open
 
 
 variable {R : Type} [CommRing R]
-variable (G : Type) [Group G] [instCyclic :IsCyclic G] [Finite G] [DecidableEq G]
+variable (G : Type) [Group G] [instCyclic : IsCyclic G] [Finite G] [DecidableEq G]
 variable (M : Rep R G)
 
 noncomputable section
@@ -207,7 +208,94 @@ def periodicitySequence : CochainComplex (Rep R G) (Fin 4) where
     -/
     sorry
 
-lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := sorry
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_X_zero : (periodicitySequence M).X 0 = M :=
+  rfl
+
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_X_one : (periodicitySequence M).X 1 = coind₁'.obj M :=
+  rfl
+
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_X_two : (periodicitySequence M).X 2 = ind₁'.obj M :=
+  rfl
+
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_X_three : (periodicitySequence M).X 3 = M :=
+  rfl
+
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_d_zero_one :
+    (periodicitySequence M).d 0 1 = coind₁'_ι.app M :=
+  rfl
+
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_d_one_two :
+    (periodicitySequence M).d 1 2 = map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv :=
+  rfl
+
+omit [DecidableEq G] in
+@[simp]
+lemma periodicitySequence_d_two_three :
+    (periodicitySequence M).d 2 3 = ind₁'_π.app M :=
+  rfl
+
+universe u
+
+-- TODO: PR
+theorem CategoryTheory.ShortComplex.moduleCat_range_le_ker
+    {R : Type u} [Ring R] (S : ShortComplex (ModuleCat R)) :
+    LinearMap.range S.f.hom ≤ LinearMap.ker S.g.hom := by
+  rintro w ⟨t, rfl⟩
+  simp
+
+theorem ShortComplex.Exact.moduleCat_of_ker_le_range
+    {R : Type u} [Ring R] (S : ShortComplex (ModuleCat R))
+    (h : LinearMap.ker S.g.hom ≤ LinearMap.range S.f.hom) :
+    S.Exact := by
+  apply ShortComplex.Exact.moduleCat_of_range_eq_ker
+  apply le_antisymm S.moduleCat_range_le_ker h
+
+lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := by
+  rw [HomologicalComplex.ExactAt, HomologicalComplex.sc,
+    HomologicalComplex.shortComplexFunctor,
+    ComplexShape.prev_eq' _ (i := 0) (by simp),
+    ComplexShape.next_eq' _ (j := 2) (by simp)]
+  -- S is ShortComplex (Rep R G) here
+  -- but Rep R G is equivalent to ModuleCat R[G]
+  -- this steps transfers our task to exactness in ModuleCat R[G]
+  apply Functor.reflects_exact_of_faithful equivalenceModuleMonoidAlgebra.functor
+  -- a sequence of R-modules is exact if LinearMap.range _ = LinearMap.ker _
+  -- in fact, range ≤ ker in complexes, so we just need ker ≤ range
+  apply ShortComplex.Exact.moduleCat_of_ker_le_range
+  simp [-SetLike.coe_set_eq, equivalenceModuleMonoidAlgebra, toModuleMonoidAlgebra,
+    toModuleMonoidAlgebraMap, ModuleCat.hom_ofHom]
+  -- now we get w with w ∈ ker
+  intro w hw_ker
+  -- prove w ∈ range!™ (type coercion hell)
+  change G → M.V at w
+  replace hw_ker (x : G) : w x = w ((gen G)⁻¹ * x) := by
+    erw [LinearMap.mem_ker] at hw_ker
+    change equivFunOnFinite.invFun (Representation.map₁ w) = 0 at hw_ker
+    rw [Equiv.invFun_as_coe, Equiv.symm_apply_eq] at hw_ker
+    exact sub_eq_zero.mp (congrFun hw_ker x)
+  have hw_const (x : G) : w x = w 1 := by
+    obtain ⟨k, rfl : (gen G) ^ k = x⟩ :=
+      Subgroup.mem_zpowers_iff.mp <| IsCyclic.exists_generator.choose_spec x
+    induction k with
+    | zero => simp
+    | succ i ih => rw [hw_ker, ← zpow_neg_one, ← zpow_add, ← ih]; ring_nf
+    | pred i ih => rw [← ih, hw_ker (gen G ^ (-(i : ℤ))), ← zpow_neg_one, ← zpow_add]; ring_nf
+  use w 1
+  change Function.const G (w 1) = w
+  ext
+  simp [hw_const]
 
 lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := sorry
 
@@ -246,7 +334,6 @@ def periodicCohomology' (n m : ℕ) :
     apply Iso.trans ih
     rw [mul_add, mul_one, ←add_assoc, add_assoc, add_comm 1, ←add_assoc]
     apply periodicCohomology
-
 
 omit [DecidableEq G] in
 /--
