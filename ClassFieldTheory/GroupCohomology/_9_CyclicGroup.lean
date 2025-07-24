@@ -30,9 +30,9 @@ open
   BigOperators
   groupCohomology
 
-
+-- TODO: add universes
 variable {R : Type} [CommRing R]
-variable (G : Type) [Group G] [instCyclic : IsCyclic G] [Finite G] [DecidableEq G]
+variable (G : Type) [Group G] [instCyclic : IsCyclic G]
 variable (M : Rep R G)
 
 noncomputable section
@@ -42,7 +42,15 @@ noncomputable section
 -/
 abbrev gen : G := IsCyclic.exists_generator.choose
 
-variable {G}
+variable {G} in
+lemma gen_generate (x : G) : x ∈ Subgroup.zpowers (gen G) :=
+  IsCyclic.exists_generator.choose_spec x
+
+theorem unique_gen_zpow_zmod [Fintype G] (x : G) :
+    ∃! n : ZMod (Fintype.card G), x = gen G ^ n.val :=
+  IsCyclic.unique_zpow_zmod gen_generate x
+
+variable {G} [Finite G] [DecidableEq G]
 
 @[simp] lemma ofHom_sub (A B : ModuleCat R) (f₁ f₂ : A →ₗ[R] B) :
   (ofHom (f₁ - f₂) : A ⟶ B) = ofHom f₁ - ofHom f₂ := rfl
@@ -274,7 +282,7 @@ lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := by
   -- a sequence of R-modules is exact if LinearMap.range _ = LinearMap.ker _
   -- in fact, range ≤ ker in complexes, so we just need ker ≤ range
   apply ShortComplex.Exact.moduleCat_of_ker_le_range
-  simp [-SetLike.coe_set_eq, equivalenceModuleMonoidAlgebra, toModuleMonoidAlgebra,
+  simp [equivalenceModuleMonoidAlgebra, toModuleMonoidAlgebra,
     toModuleMonoidAlgebraMap, ModuleCat.hom_ofHom]
   -- now we get w with w ∈ ker
   intro w hw_ker
@@ -297,7 +305,61 @@ lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := by
   ext
   simp [hw_const]
 
-lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := sorry
+lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := by
+  rw [HomologicalComplex.ExactAt, HomologicalComplex.sc,
+    HomologicalComplex.shortComplexFunctor,
+    ComplexShape.prev_eq' _ (i := 1) (by simp),
+    ComplexShape.next_eq' _ (j := 3) (by simp)]
+  -- S is ShortComplex (Rep R G) here
+  -- but Rep R G is equivalent to ModuleCat R[G]
+  -- this steps transfers our task to exactness in ModuleCat R[G]
+  apply Functor.reflects_exact_of_faithful equivalenceModuleMonoidAlgebra.functor
+  -- a sequence of R-modules is exact if LinearMap.range _ = LinearMap.ker _
+  -- in fact, range ≤ ker in complexes, so we just need ker ≤ range
+  apply ShortComplex.Exact.moduleCat_of_ker_le_range
+  simp [equivalenceModuleMonoidAlgebra, toModuleMonoidAlgebra,
+    toModuleMonoidAlgebraMap, ModuleCat.hom_ofHom]
+  -- now we get w with w ∈ ker
+  intro w hw_ker
+  -- prove w ∈ range!™ (type coercion hell)
+  change G →₀ M.V at w
+  simp [ind₁'_π] at hw_ker
+  change Representation.ind₁'_π (R := R) w = 0 at hw_ker
+  simp [Representation.ind₁'_π] at hw_ker
+  simp [ind₁'_iso_coind₁', Representation.ind₁'_lequiv_coind₁']
+  change ∃ f : G → M.V, equivFunOnFinite.symm (fun x ↦ f x - f ((gen G)⁻¹ * x)) = w
+  simp_rw [Equiv.symm_apply_eq, equivFunOnFinite, Equiv.coe_fn_mk]
+  -- use fun g ↦ (zmodCyclicMulEquiv instCyclic).symm g
+  haveI := Fintype.ofFinite G
+  let f : G → M.V := fun g ↦ ∑ i ∈ Finset.Icc 0 (unique_gen_zpow_zmod G g).choose.val, w (gen G ^ i)
+  have hf_apply (k : ℤ) : f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 (k.natMod (Fintype.card G)), w (gen G ^ i) := by
+    simp only [f]
+    congr
+    rw [((unique_gen_zpow_zmod G (gen G ^ k)).choose_spec.right (k.natMod (Fintype.card G)) ?_).symm]
+    · simp
+      apply Nat.mod_eq_of_lt
+      apply Int.natMod_lt
+      exact Fintype.card_ne_zero
+    · simp
+      rw [← zpow_natCast, Int.natMod, Int.ofNat_toNat, max_eq_left, zpow_mod_card]
+      simp [Int.emod_nonneg]
+  have hf_apply_of_lt (k : ℕ) (hk : k < Fintype.card G) :
+      f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 k, w (gen G ^ i) := by
+    convert hf_apply k
+    · simp
+    · zify
+      rw [Int.natMod, Int.toNat_of_nonneg, Int.emod_eq_of_lt]
+      · positivity
+      · exact_mod_cast hk
+      · apply Int.emod_nonneg
+        simp
+  use f
+  ext g
+  obtain ⟨k, rfl, hk_unique⟩ := unique_gen_zpow_zmod G g
+  by_cases hk : k.val = 0
+  · sorry
+  · rw [← zpow_neg_one, hf_apply_of_lt, ← zpow_natCast, ← zpow_add,
+      neg_add_eq_sub]
 
 include instCyclic in
 def up_obj_iso_down_obj : up.obj M ≅ down.obj M :=
