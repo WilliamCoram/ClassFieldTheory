@@ -1,6 +1,7 @@
 import Mathlib
 import ClassFieldTheory.GroupCohomology._9_CyclicGroup
 import ClassFieldTheory.GroupCohomology._4_TateCohomology_def
+import ClassFieldTheory.Mathlib.ModuleCatExact
 
 noncomputable section
 
@@ -82,20 +83,42 @@ def herbrandSixTermSequence : CochainComplex (ModuleCat R) (Fin 6) where
   | _,_ => 0
   shape i j _ := by fin_cases i,j <;> tauto
   d_comp_d' i _ _ hij hjk := by
-    simp only [ComplexShape.up_Rel, Fin.isValue] at hij hjk
-    rw [←hjk,←hij]
-    sorry
+    simp only [ComplexShape.up', ComplexShape.up, Fin.isValue] at hij hjk
+    rw [←hjk, ←hij]
+    fin_cases i
+    all_goals
+      dsimp
+      try simp_rw [← groupCohomology.map_comp]
+    ·
+      sorry
+    ·
+      sorry
+    ·
+      sorry
+    all_goals sorry
+
+lemma herbrandSixTermSequence_exactAt (i : Fin 6) : (herbrandSixTermSequence hS).ExactAt i := by
+  rw [HomologicalComplex.exactAt_iff]
+  fin_cases i
+  all_goals
+    simp
+    apply ShortComplex.Exact.moduleCat_of_ker_le_range
+    intro w hw_ker
+    simp
+  ·
 
 
-lemma herbrandSixTermSequence_exactAt (i : Fin 6) : (herbrandSixTermSequence hS).ExactAt i :=
+
+
   /-
   It should be possible to get this out of Mathlib.
   -/
-  sorry
+  all_goals sorry
 
 lemma herbrandQuotient_nonzero_of_shortExact₃
-  (h₁ : S.X₁.herbrandQuotient ≠ 0) (h₂ : S.X₂.herbrandQuotient ≠ 0) :
-  S.X₃.herbrandQuotient ≠ 0 := sorry
+    (h₁ : S.X₁.herbrandQuotient ≠ 0) (h₂ : S.X₂.herbrandQuotient ≠ 0) :
+    S.X₃.herbrandQuotient ≠ 0 := by
+  sorry
 
 lemma herbrandQuotient_nonzero_of_shortExact₂
   (h₁ : S.X₁.herbrandQuotient ≠ 0) (h₃ : S.X₃.herbrandQuotient ≠ 0) :
