@@ -233,11 +233,18 @@ def periodicitySequence : CochainComplex (Rep R G) (Fin 4) where
   | 1,2 => map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv
   | 2,3 => ind₁'_π.app M
   | _,_ => 0
-  d_comp_d' :=
+  d_comp_d' := by
     /-
     Proved in lemmas above in the non-trivial cases.
     -/
-    sorry
+    intro i j k
+    simp only [ComplexShape.up, ComplexShape.up']
+    rintro rfl rfl
+    fin_cases i
+    · simp [reassoc_of% coind_ι_gg_map₁_app]
+    · simp [-Iso.app_inv, reassoc_of% map₁_comp_ind₁'_iso_coind₁', map₂_app_gg_ind₁'_π_app]
+    · simp
+    · simp
 
 lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := sorry
 
