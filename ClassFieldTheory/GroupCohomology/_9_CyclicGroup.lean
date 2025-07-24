@@ -65,8 +65,15 @@ variable {A : Type} [AddCommGroup A] [Module R A] (ρ : Representation R G A)
 
 @[simps] def map₁ : (G → A) →ₗ[R] (G → A) where
   toFun f x := f x - f ((gen G)⁻¹ * x)
-  map_add' := sorry
-  map_smul' := sorry
+  map_add' := by
+    intro x y
+    ext g
+    simp only [Pi.add_apply]
+    grind
+  map_smul' := by
+    intro m f
+    ext g
+    simp only [Pi.smul_apply, RingHom.id_apply, smul_sub]
 
 omit [Finite G] [DecidableEq G] in
 lemma map₁_comm (g : G) :
