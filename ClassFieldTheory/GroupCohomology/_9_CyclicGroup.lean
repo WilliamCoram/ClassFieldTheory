@@ -98,6 +98,15 @@ lemma map₁_ker :
   LinearMap.id - lmapDomain _ _ (fun x ↦ gen G * x)
 
 omit [Finite G] [DecidableEq G] in
+lemma map₂_apply (f : G →₀ A) (g : G) :
+    map₂ (R := R) f g = f g - f ((gen G)⁻¹ * g) := by
+  simp [map₂, lmapDomain]
+  convert mapDomain_apply (f := fun g : G ↦ gen G * g) ?_ f _ using 3
+  · simp
+  · intro _ _ h
+    simpa using h
+
+omit [Finite G] [DecidableEq G] in
 @[simp] lemma map₂_comp_lsingle (x : G) :
     map₂ (R := R) (G := G) (A := A) ∘ₗ lsingle x = lsingle x - lsingle (gen G * x) := by
   ext
@@ -137,7 +146,13 @@ def map₁ : coind₁' (R := R) (G := G) ⟶ coind₁' where
       ext : 1
       apply Representation.map₁_comm
   }
-  naturality := sorry
+  naturality := by
+    intro X Y f
+    ext (w : G → X.V)
+    simp
+    change (_ : G → _) = _
+    ext g
+    simp [Representation.map₁, coind₁']
 
 omit [Finite G] [DecidableEq G] in
 lemma coind_ι_gg_map₁_app : coind₁'_ι.app M ≫ map₁.app M = 0 := by
@@ -157,7 +172,13 @@ def map₂ : ind₁' (R := R) (G := G) ⟶ ind₁' where
       ext : 1
       apply Representation.map₂_comm
   }
-  naturality := sorry
+  naturality := by
+    intro X Y f
+    ext (w : G →₀ X.V)
+    simp
+    change (_ : G →₀ _) = _
+    ext g
+    simp [ind₁', Representation.map₂_apply, -Representation.map₂_apply_toFun]
 
 omit [Finite G] [DecidableEq G] in
 lemma map₂_app_gg_ind₁'_π_app :  map₂.app M ≫ ind₁'_π.app M = 0 := by
@@ -183,9 +204,13 @@ The vertical maps are the canonical isomorphism `ind₁'_iso_coind₁`
 and the horizontal maps are `map₁` and `map₂`.
 -/
 lemma map₁_comp_ind₁'_iso_coind₁' :
-    map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv = (ind₁'_iso_coind₁'.app M).inv ≫ map₂.app M :=
-  sorry
-
+    map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv = (ind₁'_iso_coind₁'.app M).inv ≫ map₂.app M := by
+  ext (f : G → M.V)
+  change (_ : _ →₀ _) = _
+  change ((linearEquivFunOnFinite ..).symm (Representation.map₁ f)) = (Representation.map₂ ((linearEquivFunOnFinite ..).symm f))
+  ext w
+  rw [Representation.map₂_apply]
+  simp [Representation.map₁, linearEquivFunOnFinite]
 
 /--
 For a cyclic group `G`, this is the sequence of representations of a cyclic group:
