@@ -82,12 +82,13 @@ namespace Representation
 
 variable {A : Type} [AddCommGroup A] [Module R A] (ρ : Representation R G A)
 
+omit [Finite G] [DecidableEq G]
+
 @[simps] def map₁ : (G → A) →ₗ[R] (G → A) where
   toFun f x := f x - f ((gen G)⁻¹ * x)
   map_add' := sorry
   map_smul' := sorry
 
-omit [Finite G] [DecidableEq G] in
 lemma map₁_comm (g : G) :
     map₁ ∘ₗ ρ.coind₁' g = ρ.coind₁' g ∘ₗ map₁  := by
   apply LinearMap.ext
@@ -96,26 +97,51 @@ lemma map₁_comm (g : G) :
   intro
   simp [mul_assoc]
 
-omit [Finite G] [DecidableEq G] in
 lemma map₁_comp_coind_ι :
     map₁ (R := R) (G := G) (A := A) ∘ₗ coind₁'_ι = 0 := by
   ext; simp
 
-omit [Finite G] [DecidableEq G] in
 lemma map₁_ker :
-    LinearMap.ker (map₁ (R := R) (G := G) (A := A)) = LinearMap.range coind₁'_ι :=
-  sorry
+    LinearMap.ker (map₁ (R := R) (G := G) (A := A)) = LinearMap.range coind₁'_ι := by
+  ext w
+  constructor
+  · intro hw_ker
+    replace hw_ker (x : G) : w x = w ((gen G)⁻¹ * x) := by
+      erw [LinearMap.mem_ker] at hw_ker
+      change Representation.map₁ w = 0 at hw_ker
+      exact sub_eq_zero.mp (congrFun hw_ker x)
+    have hw_const (x : G) : w x = w 1 := by
+      obtain ⟨k, rfl : (gen G) ^ k = x⟩ :=
+        Subgroup.mem_zpowers_iff.mp <| IsCyclic.exists_generator.choose_spec x
+      induction k with
+      | zero => simp
+      | succ i ih => rw [hw_ker, ← zpow_neg_one, ← zpow_add, ← ih]; ring_nf
+      | pred i ih => rw [← ih, hw_ker (gen G ^ (-(i : ℤ))), ← zpow_neg_one, ← zpow_add]; ring_nf
+    use w 1
+    ext
+    simp [hw_const]
+  · intro hw_range
+    simp_rw [LinearMap.mem_range, coind₁'_ι, LinearMap.coe_mk, AddHom.coe_mk] at hw_range
+    obtain ⟨y, rfl⟩ := hw_range
+    ext
+    simp [map₁_apply]
 
 @[simps!] def map₂ : (G →₀ A) →ₗ[R] (G →₀ A) :=
   LinearMap.id - lmapDomain _ _ (fun x ↦ gen G * x)
 
-omit [Finite G] [DecidableEq G] in
+lemma map₂_apply (f : G →₀ A) (g : G) :
+    map₂ (R := R) f g = f g - f ((gen G)⁻¹ * g) := by
+  simp [map₂, lmapDomain]
+  convert mapDomain_apply (f := fun g : G ↦ gen G * g) ?_ f _ using 3
+  · simp
+  · intro _ _ h
+    simpa using h
+
 @[simp] lemma map₂_comp_lsingle (x : G) :
     map₂ (R := R) (G := G) (A := A) ∘ₗ lsingle x = lsingle x - lsingle (gen G * x) := by
   ext
   simp [map₂, LinearMap.sub_comp]
 
-omit [Finite G] [DecidableEq G] in
 lemma map₂_comm (g : G) :
     map₂ ∘ₗ ρ.ind₁' g = ρ.ind₁' g ∘ₗ map₂ := by
   ext x : 1
@@ -123,20 +149,98 @@ lemma map₂_comm (g : G) :
     LinearMap.comp_sub, ind₁'_comp_lsingle, ←LinearMap.comp_assoc, map₂_comp_lsingle,
     LinearMap.sub_comp, ind₁'_comp_lsingle, mul_assoc]
 
-omit [Finite G] [DecidableEq G] in
 lemma ind₁'_π_comp_map₂ :
     ind₁'_π ∘ₗ map₂ (R := R) (G := G) (A := A) = 0 := by
   ext : 1
   rw [LinearMap.comp_assoc, map₂_comp_lsingle, LinearMap.comp_sub,
     LinearMap.zero_comp, sub_eq_zero, ind₁'_π_comp_lsingle, ind₁'_π_comp_lsingle]
 
-lemma map₂_range :
-    LinearMap.range (map₂ (R := R) (G := G) (A := A)) = LinearMap.ker ind₁'_π :=
-  sorry
+lemma map₂_range [Fintype G] [DecidableEq G] :
+    LinearMap.range (map₂ (R := R) (G := G) (A := A)) = LinearMap.ker ind₁'_π := by
+  ext w
+  constructor
+  · rintro ⟨y, rfl⟩
+    have := ind₁'_π_comp_map₂ (R := R) (G := G) (A := A)
+    apply_fun (· y) at this
+    exact this
+  · intro hw_ker
+    change Representation.ind₁'_π (R := R) w = 0 at hw_ker
+    simp [Representation.ind₁'_π] at hw_ker
+    rw [LinearMap.mem_range]
+    let f : G → A := fun g ↦ ∑ i ∈ Finset.Icc 0 (unique_gen_pow G g).choose, w (gen G ^ i)
+    have hf_apply (k : ℤ) : f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 (k.natMod (Fintype.card G)), w (gen G ^ i) := by
+      simp only [f]
+      congr
+      rw [((unique_gen_pow G (gen G ^ k)).choose_spec.right (k.natMod (Fintype.card G)) ⟨?_, ?_⟩).symm]
+      · apply Int.natMod_lt
+        exact Fintype.card_ne_zero
+      · rw [← zpow_natCast, Int.natMod, Int.ofNat_toNat, max_eq_left, zpow_mod_card]
+        simp [Int.emod_nonneg]
+    have hf_apply_of_lt (k : ℕ) (hk : k < Fintype.card G) :
+        f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 k, w (gen G ^ i) := by
+      convert hf_apply k
+      · simp
+      · zify
+        rw [Int.natMod, Int.toNat_of_nonneg, Int.emod_eq_of_lt]
+        · positivity
+        · exact_mod_cast hk
+        · apply Int.emod_nonneg
+          simp
+    use equivFunOnFinite.symm f
+    ext g
+    rw [map₂_apply]
+    change f g - f ((gen G)⁻¹ * g) = w g
+    obtain ⟨k, ⟨hk_lt, rfl⟩, hk_unique⟩ := unique_gen_pow G g
+    by_cases hk : k = 0
+    · rw [hk, hf_apply_of_lt, pow_zero, mul_one]
+      · have : (gen G)⁻¹ = gen G ^ (Fintype.card G - 1 : ℕ) := by
+          rw [inv_eq_iff_mul_eq_one, ← pow_succ',
+            Nat.sub_add_cancel Fintype.card_pos, pow_card_eq_one]
+        rw [this, hf_apply_of_lt]
+        · simp
+          calc
+            _ = ∑ i ∈ Finset.Ico 0 (Fintype.card G), w (gen G ^ i) := by
+              congr
+              apply Finset.Icc_sub_one_right_eq_Ico_of_not_isMin
+              rw [isMin_iff_forall_not_lt]
+              push_neg
+              use 0, Fintype.card_pos
+            _ = ∑ x ∈ (Finset.Ico 0 (Fintype.card G)).image (gen G ^ ·), w x := by
+              rw [Finset.sum_image]
+              intro x hx y hy h
+              simp at hx hy h
+              simp only at hk_unique
+              have := (unique_gen_pow G (gen G ^ x)).choose_spec.right
+              rw [this x, this y]
+              · simp [hy, h]
+              · simp [hx]
+            _ = ∑ x ∈ (Finset.univ : Finset G), w x := by
+              congr
+              rw [Finset.eq_univ_iff_forall]
+              intro x
+              simp
+              obtain ⟨a, ha, ha'⟩ := unique_gen_pow G x
+              use a, ha.left, ha.right.symm
+            _ = 0 := by
+              simpa [Finsupp.sum_fintype] using hw_ker
+        · simp
+          exact Fintype.card_pos
+      · exact Fintype.card_pos
+    · rw [← zpow_neg_one, hf_apply_of_lt, ← zpow_natCast, ← zpow_add,
+        neg_add_eq_sub, show (k : ℤ) - 1 = (k - 1 : ℕ) by omega,
+        zpow_natCast, hf_apply_of_lt]
+      · nth_rw 1 [show k = k - 1 + 1 by omega]
+        rw [Finset.sum_Icc_succ_top]
+        rw [add_sub_cancel_left, zpow_natCast, Nat.sub_add_cancel (by omega)]
+        omega
+      · omega
+      · omega
 
 end Representation
 
 namespace Rep
+
+omit [DecidableEq G]
 
 /--
 The map `coind₁'.obj M ⟶ coind₁' M` which takes a function `f : G → M.V` to
@@ -171,12 +275,12 @@ def map₂ : ind₁' (R := R) (G := G) ⟶ ind₁' where
   }
   naturality := sorry
 
-omit [Finite G] [DecidableEq G] in
+omit [Finite G] in
 lemma map₂_app_gg_ind₁'_π_app :  map₂.app M ≫ ind₁'_π.app M = 0 := by
   ext : 2
   apply Representation.ind₁'_π_comp_map₂
 
-omit [Finite G] [DecidableEq G] in
+omit [Finite G] in
 lemma map₂_gg_ind₁'_π : map₂ (R := R) (G := G) ≫ ind₁'_π = 0 := by
   ext : 2
   apply map₂_app_gg_ind₁'_π_app
@@ -226,39 +330,32 @@ def periodicitySequence : CochainComplex (Rep R G) (Fin 4) where
     -/
     sorry
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_X_zero : (periodicitySequence M).X 0 = M :=
   rfl
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_X_one : (periodicitySequence M).X 1 = coind₁'.obj M :=
   rfl
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_X_two : (periodicitySequence M).X 2 = ind₁'.obj M :=
   rfl
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_X_three : (periodicitySequence M).X 3 = M :=
   rfl
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_d_zero_one :
     (periodicitySequence M).d 0 1 = coind₁'_ι.app M :=
   rfl
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_d_one_two :
     (periodicitySequence M).d 1 2 = map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv :=
   rfl
 
-omit [DecidableEq G] in
 @[simp]
 lemma periodicitySequence_d_two_three :
     (periodicitySequence M).d 2 3 = ind₁'_π.app M :=
@@ -279,27 +376,17 @@ lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := by
   simp [equivalenceModuleMonoidAlgebra, toModuleMonoidAlgebra,
     toModuleMonoidAlgebraMap, ModuleCat.hom_ofHom]
   -- now we get w with w ∈ ker
-  intro w hw_ker
-  -- prove w ∈ range!™ (type coercion hell)
-  change G → M.V at w
-  replace hw_ker (x : G) : w x = w ((gen G)⁻¹ * x) := by
-    erw [LinearMap.mem_ker] at hw_ker
-    change equivFunOnFinite.invFun (Representation.map₁ w) = 0 at hw_ker
-    rw [Equiv.invFun_as_coe, Equiv.symm_apply_eq] at hw_ker
-    exact sub_eq_zero.mp (congrFun hw_ker x)
-  have hw_const (x : G) : w x = w 1 := by
-    obtain ⟨k, rfl : (gen G) ^ k = x⟩ :=
-      Subgroup.mem_zpowers_iff.mp <| IsCyclic.exists_generator.choose_spec x
-    induction k with
-    | zero => simp
-    | succ i ih => rw [hw_ker, ← zpow_neg_one, ← zpow_add, ← ih]; ring_nf
-    | pred i ih => rw [← ih, hw_ker (gen G ^ (-(i : ℤ))), ← zpow_neg_one, ← zpow_add]; ring_nf
-  use w 1
-  change Function.const G (w 1) = w
-  ext
-  simp [hw_const]
+  have := Representation.map₁_ker (R := R) (G := G) (A := M.V)
+  -- Figuring these few lines out took 20 minutes!
+  intro (w : G → M.V) hw
+  simp
+  change w ∈ LinearMap.range Representation.coind₁'_ι
+  rw [← Representation.map₁_ker]
+  simp [ind₁'_iso_coind₁', Representation.ind₁'_lequiv_coind₁', LinearMap.comp] at hw ⊢
+  exact (LinearEquiv.symm_apply_eq _).mp hw
 
-lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := by
+lemma periodicitySequence_exactAt_two [Fintype G] [DecidableEq G] :
+    (periodicitySequence M).ExactAt 2 := by
   rw [HomologicalComplex.ExactAt, HomologicalComplex.sc,
     HomologicalComplex.shortComplexFunctor,
     ComplexShape.prev_eq' _ (i := 1) (by simp),
@@ -318,79 +405,16 @@ lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := by
   -- prove w ∈ range!™ (type coercion hell)
   change G →₀ M.V at w
   simp [ind₁'_π] at hw_ker
-  change Representation.ind₁'_π (R := R) w = 0 at hw_ker
-  simp [Representation.ind₁'_π] at hw_ker
-  simp [ind₁'_iso_coind₁', Representation.ind₁'_lequiv_coind₁']
-  change ∃ f : G → M.V, equivFunOnFinite.symm (fun x ↦ f x - f ((gen G)⁻¹ * x)) = w
-  simp_rw [Equiv.symm_apply_eq, equivFunOnFinite, Equiv.coe_fn_mk]
-  -- use fun g ↦ (zmodCyclicMulEquiv instCyclic).symm g
-  haveI := Fintype.ofFinite G
-  let f : G → M.V := fun g ↦ ∑ i ∈ Finset.Icc 0 (unique_gen_pow G g).choose, w (gen G ^ i)
-  have hf_apply (k : ℤ) : f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 (k.natMod (Fintype.card G)), w (gen G ^ i) := by
-    simp only [f]
-    congr
-    rw [((unique_gen_pow G (gen G ^ k)).choose_spec.right (k.natMod (Fintype.card G)) ⟨?_, ?_⟩).symm]
-    · apply Int.natMod_lt
-      exact Fintype.card_ne_zero
-    · rw [← zpow_natCast, Int.natMod, Int.ofNat_toNat, max_eq_left, zpow_mod_card]
-      simp [Int.emod_nonneg]
-  have hf_apply_of_lt (k : ℕ) (hk : k < Fintype.card G) :
-      f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 k, w (gen G ^ i) := by
-    convert hf_apply k
-    · simp
-    · zify
-      rw [Int.natMod, Int.toNat_of_nonneg, Int.emod_eq_of_lt]
-      · positivity
-      · exact_mod_cast hk
-      · apply Int.emod_nonneg
-        simp
-  use f
-  ext g
-  obtain ⟨k, ⟨hk_lt, rfl⟩, hk_unique⟩ := unique_gen_pow G g
-  by_cases hk : k = 0
-  · rw [hk, hf_apply_of_lt, pow_zero, mul_one]
-    · have : (gen G)⁻¹ = gen G ^ (Fintype.card G - 1 : ℕ) := by
-        rw [inv_eq_iff_mul_eq_one, ← pow_succ',
-          Nat.sub_add_cancel Fintype.card_pos, pow_card_eq_one]
-      rw [this, hf_apply_of_lt]
-      · simp
-        calc
-          _ = ∑ i ∈ Finset.Ico 0 (Fintype.card G), w (gen G ^ i) := by
-            congr
-            apply Finset.Icc_sub_one_right_eq_Ico_of_not_isMin
-            rw [isMin_iff_forall_not_lt]
-            push_neg
-            use 0, Fintype.card_pos
-          _ = ∑ x ∈ (Finset.Ico 0 (Fintype.card G)).image (gen G ^ ·), w x := by
-            rw [Finset.sum_image]
-            intro x hx y hy h
-            simp at hx hy h
-            simp only at hk_unique
-            have := (unique_gen_pow G (gen G ^ x)).choose_spec.right
-            rw [this x, this y]
-            · simp [hy, h]
-            · simp [hx]
-          _ = ∑ x ∈ (Finset.univ : Finset G), w x := by
-            congr
-            rw [Finset.eq_univ_iff_forall]
-            intro x
-            simp
-            obtain ⟨a, ha, ha'⟩ := unique_gen_pow G x
-            use a, ha.left, ha.right.symm
-          _ = 0 := by
-            simpa [Finsupp.sum_fintype] using hw_ker
-      · simp
-        exact Fintype.card_pos
-    · exact Fintype.card_pos
-  · rw [← zpow_neg_one, hf_apply_of_lt, ← zpow_natCast, ← zpow_add,
-      neg_add_eq_sub, show (k : ℤ) - 1 = (k - 1 : ℕ) by omega,
-      zpow_natCast, hf_apply_of_lt]
-    · nth_rw 1 [show k = k - 1 + 1 by omega]
-      rw [Finset.sum_Icc_succ_top]
-      rw [add_sub_cancel_left, zpow_natCast, Nat.sub_add_cancel (by omega)]
-      omega
-    · omega
-    · omega
+  change w ∈ LinearMap.ker (Representation.ind₁'_π (R := R)) at hw_ker
+  rw [← Representation.map₂_range] at hw_ker
+  simp [ind₁'_iso_coind₁', Representation.ind₁'_lequiv_coind₁', LinearMap.comp] at hw_ker ⊢
+  obtain ⟨y, rfl⟩ := hw_ker
+  use (y : G → M.V)
+  change (linearEquivFunOnFinite ..).symm (Representation.map₁ y) = Representation.map₂ (R := R) y
+  -- I need a Representation (Rep) version of map₁_comp_ind₁'_iso_coind₁' here
+  ext w
+  rw [Representation.map₂_apply]
+  simp [linearEquivFunOnFinite]
 
 include instCyclic in
 def up_obj_iso_down_obj : up.obj M ≅ down.obj M :=
