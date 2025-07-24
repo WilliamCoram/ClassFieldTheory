@@ -98,15 +98,6 @@ lemma map₁_ker :
   LinearMap.id - lmapDomain _ _ (fun x ↦ gen G * x)
 
 omit [Finite G] [DecidableEq G] in
-lemma map₂_apply (f : G →₀ A) (g : G) :
-    map₂ (R := R) f g = f g - f ((gen G)⁻¹ * g) := by
-  simp [map₂, lmapDomain]
-  convert mapDomain_apply (f := fun g : G ↦ gen G * g) ?_ f _ using 3
-  · simp
-  · intro _ _ h
-    simpa using h
-
-omit [Finite G] [DecidableEq G] in
 @[simp] lemma map₂_comp_lsingle (x : G) :
     map₂ (R := R) (G := G) (A := A) ∘ₗ lsingle x = lsingle x - lsingle (gen G * x) := by
   ext
