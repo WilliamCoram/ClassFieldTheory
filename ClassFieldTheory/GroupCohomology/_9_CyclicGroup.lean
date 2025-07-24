@@ -2,6 +2,7 @@ import Mathlib
 import ClassFieldTheory.GroupCohomology._6_LeftRegular
 import ClassFieldTheory.GroupCohomology._7_coind1_and_ind1
 import ClassFieldTheory.GroupCohomology._8_DimensionShift
+import ClassFieldTheory.Mathlib.ModuleCatExactt
 
 /-!
 Let `M : Rep R G`, where `G` is a finite cyclic group.
@@ -58,10 +59,6 @@ theorem unique_gen_pow [Fintype G] (x : G) :
   rw [← hk_unique y]
   · rw [ZMod.val_natCast, Nat.mod_eq_of_lt hy_lt]
   · simp [hy]
-
-theorem eq_of_gen_zpow_eq [Fintype G] (a b : ℤ) (h : gen G ^ a = gen G ^ b) :
-    a = b :=
-  IsCyclic.unique_zpow_zmod gen_generate x
 
 variable {G} [Finite G] [DecidableEq G]
 
@@ -266,22 +263,6 @@ omit [DecidableEq G] in
 lemma periodicitySequence_d_two_three :
     (periodicitySequence M).d 2 3 = ind₁'_π.app M :=
   rfl
-
-universe u
-
--- TODO: PR
-theorem CategoryTheory.ShortComplex.moduleCat_range_le_ker
-    {R : Type u} [Ring R] (S : ShortComplex (ModuleCat R)) :
-    LinearMap.range S.f.hom ≤ LinearMap.ker S.g.hom := by
-  rintro w ⟨t, rfl⟩
-  simp
-
-theorem ShortComplex.Exact.moduleCat_of_ker_le_range
-    {R : Type u} [Ring R] (S : ShortComplex (ModuleCat R))
-    (h : LinearMap.ker S.g.hom ≤ LinearMap.range S.f.hom) :
-    S.Exact := by
-  apply ShortComplex.Exact.moduleCat_of_range_eq_ker
-  apply le_antisymm S.moduleCat_range_le_ker h
 
 lemma periodicitySequence_exactAt_one : (periodicitySequence M).ExactAt 1 := by
   rw [HomologicalComplex.ExactAt, HomologicalComplex.sc,
