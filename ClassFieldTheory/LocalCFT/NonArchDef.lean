@@ -6,7 +6,7 @@ import Mathlib
 We define non-archimedean local fields as a class `IsNonArchLF`.
 
 -/
-
+set_option synthInstance.maxHeartbeats 0
 universe u v
 
 class IsNonarchLocalField (K : Type u) [Field K] [ValuativeRel K] [UniformSpace K] : Prop extends
@@ -46,8 +46,9 @@ variable (p : ℕ) [Fact p.Prime]
 
 instance : LocallyCompactSpace ℚ_[p] := inferInstance
 
-instance : IsNonarchLocalField ℚ_[p] where
-  mem_nhds_iff := sorry
+
+
+
 
 variable (K : Type u) [Field K] [ValuativeRel K] [UniformSpace K] [IsNonarchLocalField K]
   (L : Type v) [Field L] [ValuativeRel L] [UniformSpace L] [IsNonarchLocalField L]
@@ -160,7 +161,7 @@ instance : Module.Finite 𝒪[K] 𝒪[L] :=
 
 instance : IsScalarTower 𝒪[K] K L := inferInstance
 
-instance : IsScalarTower 𝒪[K] 𝒪[L] L := sorry --inferInstance
+instance : IsScalarTower 𝒪[K] 𝒪[L] L :=sorry
 
 noncomputable def e : ℕ :=
   Ideal.ramificationIdx (algebraMap 𝒪[K] 𝒪[L]) 𝓂[K] 𝓂[L]
@@ -172,8 +173,21 @@ theorem e_spec {ϖK : 𝒪[K]} {ϖL : 𝒪[L]} (hk : Irreducible ϖK) (hl : Irre
 noncomputable def f : ℕ :=
   Ideal.inertiaDeg 𝓂[K] 𝓂[L]
 
-theorem f_spec : Nat.card 𝓀[K] ^ f K L = Nat.card 𝓀[K] :=
-  sorry
+
+
+theorem f_spec : Nat.card 𝓀[K] ^ f K L = Nat.card 𝓀[L] :=by
+  letI l1 : Algebra 𝓀[K] 𝓀[L] :=Ideal.Quotient.algebraQuotientOfLEComap
+   (IsLocalRing.eq_maximalIdeal
+   (Ideal.isMaximal_comap_of_isIntegral_of_isMaximal 𝓂[L])).ge
+  have s :Module.finrank 𝓀[K] 𝓀[L] = f K L :=by
+    simp only [f, Ideal.inertiaDeg,IsLocalRing.eq_maximalIdeal
+    (Ideal.isMaximal_comap_of_isIntegral_of_isMaximal 𝓂[L]), ↓reduceDIte,
+    IsLocalRing.ResidueField]
+  letI : Fintype 𝓀[K] :=Fintype.ofFinite (IsLocalRing.ResidueField ↥𝒪[K])
+  letI : Fintype 𝓀[L] :=Fintype.ofFinite (IsLocalRing.ResidueField ↥𝒪[L])
+  rw[← s,Nat.card_eq_fintype_card,← Module.card_eq_pow_finrank
+  ,Nat.card_eq_fintype_card]
+
 
 theorem e_pos : 0 < e K L :=
   sorry
@@ -191,7 +205,8 @@ class IsUnramified : Prop where
 theorem unramified_def : IsUnramified K L ↔ e K L = 1 :=
   ⟨fun h ↦ h.1, fun h ↦ ⟨h⟩⟩
 
-theorem unramified_iff_unramified : IsUnramified K L ↔ Algebra.Unramified 𝒪[K] 𝒪[L] :=
+theorem unramified_iff_unramified : IsUnramified K L ↔ Algebra.Unramified 𝒪[K] 𝒪[L] :=by
+
   sorry
 
 section make_finite_extension
