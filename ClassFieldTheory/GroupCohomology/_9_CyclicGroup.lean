@@ -50,6 +50,19 @@ theorem unique_gen_zpow_zmod [Fintype G] (x : G) :
     ∃! n : ZMod (Fintype.card G), x = gen G ^ n.val :=
   IsCyclic.unique_zpow_zmod gen_generate x
 
+theorem unique_gen_pow [Fintype G] (x : G) :
+    ∃! n < Fintype.card G, x = gen G ^ n := by
+  obtain ⟨k, hk, hk_unique⟩ := unique_gen_zpow_zmod G x
+  refine ⟨k.val, ⟨⟨ZMod.val_lt _, hk⟩, ?_⟩⟩
+  intro y ⟨hy_lt, hy⟩
+  rw [← hk_unique y]
+  · rw [ZMod.val_natCast, Nat.mod_eq_of_lt hy_lt]
+  · simp [hy]
+
+theorem eq_of_gen_zpow_eq [Fintype G] (a b : ℤ) (h : gen G ^ a = gen G ^ b) :
+    a = b :=
+  IsCyclic.unique_zpow_zmod gen_generate x
+
 variable {G} [Finite G] [DecidableEq G]
 
 @[simp] lemma ofHom_sub (A B : ModuleCat R) (f₁ f₂ : A →ₗ[R] B) :
@@ -331,17 +344,14 @@ lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := by
   simp_rw [Equiv.symm_apply_eq, equivFunOnFinite, Equiv.coe_fn_mk]
   -- use fun g ↦ (zmodCyclicMulEquiv instCyclic).symm g
   haveI := Fintype.ofFinite G
-  let f : G → M.V := fun g ↦ ∑ i ∈ Finset.Icc 0 (unique_gen_zpow_zmod G g).choose.val, w (gen G ^ i)
+  let f : G → M.V := fun g ↦ ∑ i ∈ Finset.Icc 0 (unique_gen_pow G g).choose, w (gen G ^ i)
   have hf_apply (k : ℤ) : f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 (k.natMod (Fintype.card G)), w (gen G ^ i) := by
     simp only [f]
     congr
-    rw [((unique_gen_zpow_zmod G (gen G ^ k)).choose_spec.right (k.natMod (Fintype.card G)) ?_).symm]
-    · simp
-      apply Nat.mod_eq_of_lt
-      apply Int.natMod_lt
+    rw [((unique_gen_pow G (gen G ^ k)).choose_spec.right (k.natMod (Fintype.card G)) ⟨?_, ?_⟩).symm]
+    · apply Int.natMod_lt
       exact Fintype.card_ne_zero
-    · simp
-      rw [← zpow_natCast, Int.natMod, Int.ofNat_toNat, max_eq_left, zpow_mod_card]
+    · rw [← zpow_natCast, Int.natMod, Int.ofNat_toNat, max_eq_left, zpow_mod_card]
       simp [Int.emod_nonneg]
   have hf_apply_of_lt (k : ℕ) (hk : k < Fintype.card G) :
       f (gen G ^ k) = ∑ i ∈ Finset.Icc 0 k, w (gen G ^ i) := by
@@ -355,11 +365,51 @@ lemma periodicitySequence_exactAt_two : (periodicitySequence M).ExactAt 2 := by
         simp
   use f
   ext g
-  obtain ⟨k, rfl, hk_unique⟩ := unique_gen_zpow_zmod G g
-  by_cases hk : k.val = 0
-  · sorry
+  obtain ⟨k, ⟨hk_lt, rfl⟩, hk_unique⟩ := unique_gen_pow G g
+  by_cases hk : k = 0
+  · rw [hk, hf_apply_of_lt, pow_zero, mul_one]
+    · have : (gen G)⁻¹ = gen G ^ (Fintype.card G - 1 : ℕ) := by
+        rw [inv_eq_iff_mul_eq_one, ← pow_succ',
+          Nat.sub_add_cancel Fintype.card_pos, pow_card_eq_one]
+      rw [this, hf_apply_of_lt]
+      · simp
+        calc
+          _ = ∑ i ∈ Finset.Ico 0 (Fintype.card G), w (gen G ^ i) := by
+            congr
+            apply Finset.Icc_sub_one_right_eq_Ico_of_not_isMin
+            rw [isMin_iff_forall_not_lt]
+            push_neg
+            use 0, Fintype.card_pos
+          _ = ∑ x ∈ (Finset.Ico 0 (Fintype.card G)).image (gen G ^ ·), w x := by
+            rw [Finset.sum_image]
+            intro x hx y hy h
+            simp at hx hy h
+            simp only at hk_unique
+            have := (unique_gen_pow G (gen G ^ x)).choose_spec.right
+            rw [this x, this y]
+            · simp [hy, h]
+            · simp [hx]
+          _ = ∑ x ∈ (Finset.univ : Finset G), w x := by
+            congr
+            rw [Finset.eq_univ_iff_forall]
+            intro x
+            simp
+            obtain ⟨a, ha, ha'⟩ := unique_gen_pow G x
+            use a, ha.left, ha.right.symm
+          _ = 0 := by
+            simpa [Finsupp.sum_fintype] using hw_ker
+      · simp
+        exact Fintype.card_pos
+    · exact Fintype.card_pos
   · rw [← zpow_neg_one, hf_apply_of_lt, ← zpow_natCast, ← zpow_add,
-      neg_add_eq_sub]
+      neg_add_eq_sub, show (k : ℤ) - 1 = (k - 1 : ℕ) by omega,
+      zpow_natCast, hf_apply_of_lt]
+    · nth_rw 1 [show k = k - 1 + 1 by omega]
+      rw [Finset.sum_Icc_succ_top]
+      rw [add_sub_cancel_left, zpow_natCast, Nat.sub_add_cancel (by omega)]
+      omega
+    · omega
+    · omega
 
 include instCyclic in
 def up_obj_iso_down_obj : up.obj M ≅ down.obj M :=
