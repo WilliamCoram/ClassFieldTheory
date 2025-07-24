@@ -86,8 +86,12 @@ omit [Finite G] [DecidableEq G]
 
 @[simps] def map₁ : (G → A) →ₗ[R] (G → A) where
   toFun f x := f x - f ((gen G)⁻¹ * x)
-  map_add' := sorry
-  map_smul' := sorry
+  map_add' _ _ := by
+    ext x
+    simp [add_sub_add_comm]
+  map_smul' _ _ := by
+    ext
+    simp [← smul_sub]
 
 lemma map₁_comm (g : G) :
     map₁ ∘ₗ ρ.coind₁' g = ρ.coind₁' g ∘ₗ map₁  := by
@@ -103,40 +107,51 @@ lemma map₁_comp_coind_ι :
 
 lemma map₁_ker :
     LinearMap.ker (map₁ (R := R) (G := G) (A := A)) = LinearMap.range coind₁'_ι := by
-  ext w
+  ext f
   constructor
-  · intro hw_ker
-    replace hw_ker (x : G) : w x = w ((gen G)⁻¹ * x) := by
-      erw [LinearMap.mem_ker] at hw_ker
-      change Representation.map₁ w = 0 at hw_ker
-      exact sub_eq_zero.mp (congrFun hw_ker x)
-    have hw_const (x : G) : w x = w 1 := by
-      obtain ⟨k, rfl : (gen G) ^ k = x⟩ :=
-        Subgroup.mem_zpowers_iff.mp <| IsCyclic.exists_generator.choose_spec x
-      induction k with
-      | zero => simp
-      | succ i ih => rw [hw_ker, ← zpow_neg_one, ← zpow_add, ← ih]; ring_nf
-      | pred i ih => rw [← ih, hw_ker (gen G ^ (-(i : ℤ))), ← zpow_neg_one, ← zpow_add]; ring_nf
-    use w 1
-    ext
-    simp [hw_const]
-  · intro hw_range
-    simp_rw [LinearMap.mem_range, coind₁'_ι, LinearMap.coe_mk, AddHom.coe_mk] at hw_range
-    obtain ⟨y, rfl⟩ := hw_range
-    ext
-    simp [map₁_apply]
+  · intro hf
+    rw [LinearMap.mem_ker] at hf
+    simp only [coind₁'_ι, LinearMap.mem_range, LinearMap.coe_mk, AddHom.coe_mk, ] at hf ⊢
+    use f (gen G)⁻¹
+    ext x
+    obtain ⟨n, hx⟩ : x ∈ Subgroup.zpowers (gen G) := IsCyclic.exists_generator.choose_spec x
+    dsimp at hx
+    rw [Function.const_apply, ← hx]
+    dsimp [map₁] at hf
+    induction n generalizing x with
+    | zero =>
+        rw [zpow_zero]
+        have := congr_fun hf 1
+        simp only [mul_one, Pi.zero_apply] at this
+        rw [sub_eq_zero] at this
+        exact this.symm
+    | succ n hn =>
+      have := congr_fun hf ((gen G ^ ((n : ℤ) + 1)))
+      simp only [Pi.zero_apply, sub_eq_zero] at this
+      rw [this, hn _ rfl]
+      group
+    | pred n hn =>
+      have := congr_fun hf ((gen G ^ (- (n : ℤ))))
+      simp only [Pi.zero_apply, sub_eq_zero] at this
+      rw [zpow_sub_one (gen G) _, hn _ rfl, this]
+      group
+  · rintro ⟨_, rfl⟩
+    exact LinearMap.congr_fun map₁_comp_coind_ι _
 
 @[simps!] def map₂ : (G →₀ A) →ₗ[R] (G →₀ A) :=
   LinearMap.id - lmapDomain _ _ (fun x ↦ gen G * x)
 
-lemma map₂_apply (f : G →₀ A) (g : G) :
-    map₂ (R := R) f g = f g - f ((gen G)⁻¹ * g) := by
-  simp [map₂, lmapDomain]
-  convert mapDomain_apply (f := fun g : G ↦ gen G * g) ?_ f _ using 3
+omit [Finite G] [DecidableEq G]
+lemma map₂'_apply₂ (f : G →₀ A) (x : G) :
+    Representation.map₂ (R := R) f x = f x - f ((gen G)⁻¹ * x) := by
+  simp [Representation.map₂]
+  convert Finsupp.mapDomain_apply ?_ _ ((gen G)⁻¹ * x)
   · simp
-  · intro _ _ h
+  · intro x y h
     simpa using h
 
+
+omit [Finite G] [DecidableEq G] in
 @[simp] lemma map₂_comp_lsingle (x : G) :
     map₂ (R := R) (G := G) (A := A) ∘ₗ lsingle x = lsingle x - lsingle (gen G * x) := by
   ext
@@ -244,7 +259,7 @@ omit [DecidableEq G]
 
 /--
 The map `coind₁'.obj M ⟶ coind₁' M` which takes a function `f : G → M.V` to
-`x ↦ f x - f (gen G * x)`.
+`x ↦ f x - f ((gen G)⁻¹ * x)`.
 -/
 def map₁ : coind₁' (R := R) (G := G) ⟶ coind₁' where
   app M := {
@@ -253,7 +268,11 @@ def map₁ : coind₁' (R := R) (G := G) ⟶ coind₁' where
       ext : 1
       apply Representation.map₁_comm
   }
-  naturality := sorry
+  naturality L N g := by
+    ext v
+    dsimp only [Representation.map₁, coind₁']
+    ext x
+    simp
 
 omit [Finite G] [DecidableEq G] in
 lemma coind_ι_gg_map₁_app : coind₁'_ι.app M ≫ map₁.app M = 0 := by
@@ -265,7 +284,6 @@ lemma coind_ι_gg_map₁ : coind₁'_ι ≫ map₁ (R := R) (G := G) = 0 := by
   ext : 2
   apply coind_ι_gg_map₁_app
 
-
 def map₂ : ind₁' (R := R) (G := G) ⟶ ind₁' where
   app M := {
     hom := ofHom Representation.map₂
@@ -273,7 +291,16 @@ def map₂ : ind₁' (R := R) (G := G) ⟶ ind₁' where
       ext : 1
       apply Representation.map₂_comm
   }
-  naturality := sorry
+  naturality := by
+    intro N L f
+    ext x
+    dsimp only [Representation.map₂, ind₁']
+    ext x
+    simp
+
+    sorry
+
+
 
 omit [Finite G] in
 lemma map₂_app_gg_ind₁'_π_app :  map₂.app M ≫ ind₁'_π.app M = 0 := by
@@ -299,8 +326,17 @@ The vertical maps are the canonical isomorphism `ind₁'_iso_coind₁`
 and the horizontal maps are `map₁` and `map₂`.
 -/
 lemma map₁_comp_ind₁'_iso_coind₁' :
-    map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv = (ind₁'_iso_coind₁'.app M).inv ≫ map₂.app M :=
-  sorry
+    map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv = (ind₁'_iso_coind₁'.app M).inv ≫ map₂.app M := by
+  ext x
+  simp [coind₁', ind₁'] at x ⊢
+  ext d
+
+  simp only [ind₁'_iso_coind₁', Representation.ind₁'_lequiv_coind₁', linearEquivFunOnFinite,
+    Equiv.invFun_as_coe, ModuleCat.hom_ofHom, map₁, Representation.map₁, LinearMap.coe_mk,
+    AddHom.coe_mk, LinearEquiv.coe_coe, LinearEquiv.coe_symm_mk, equivFunOnFinite_symm_apply_toFun,
+    map₂]
+  rw [Representation.map₂'_apply₂]
+  simp
 
 
 /--
@@ -324,11 +360,21 @@ def periodicitySequence : CochainComplex (Rep R G) (Fin 4) where
   | 1,2 => map₁.app M ≫ (ind₁'_iso_coind₁'.app M).inv
   | 2,3 => ind₁'_π.app M
   | _,_ => 0
-  d_comp_d' :=
-    /-
-    Proved in lemmas above in the non-trivial cases.
-    -/
-    sorry
+  d_comp_d' := by
+    intro i j k hij hjk
+    fin_cases i
+    all_goals
+      fin_cases j
+      try simp only [Fin.reduceFinMk, Fin.isValue, Fin.zero_eta, Iso.app_inv, zero_comp]
+      fin_cases k
+      all_goals
+        try simp only [Fin.reduceFinMk, Fin.isValue, Fin.zero_eta, Fin.mk_one, comp_zero,
+          Iso.app_inv, zero_comp]
+    · rw [← Category.assoc, coind_ι_gg_map₁_app, zero_comp]
+    · fin_cases k
+      all_goals try simp only [Fin.reduceFinMk, Fin.isValue, comp_zero]
+      rw [← Iso.app_inv _ _, map₁_comp_ind₁'_iso_coind₁', Category.assoc,
+        map₂_app_gg_ind₁'_π_app, comp_zero]
 
 @[simp]
 lemma periodicitySequence_X_zero : (periodicitySequence M).X 0 = M :=
@@ -429,7 +475,10 @@ def up_obj_iso_down_obj : up.obj M ≅ down.obj M :=
 def up_iso_down : up (R := R) (G := G) ≅ down where
   hom := {
     app M := (up_obj_iso_down_obj M).hom
-    naturality := sorry
+    naturality L N f := by
+      ext v
+      simp [up_obj_iso_down_obj]
+      sorry
   }
   inv := {
     app M := (up_obj_iso_down_obj M).inv
@@ -452,6 +501,13 @@ def periodicCohomology' (n m : ℕ) :
     rw [mul_add, mul_one, ←add_assoc, add_assoc, add_comm 1, ←add_assoc]
     apply periodicCohomology
 
+def periodicCohomology_mod2 (m n : ℕ) (h : m ≡ n [MOD 2]) :
+    functor R G (m + 1) ≅ functor R G (n + 1) :=
+  if hLe : m ≤ n then
+    (periodicCohomology' m ((n - m) /2)).trans <| eqToIso (by grind [Nat.modEq_iff_dvd])
+  else
+   (eqToIso (by grind [Nat.modEq_iff_dvd])).trans (periodicCohomology' n ((m - n) /2)).symm
+
 omit [DecidableEq G] in
 /--
 Let `M` be a representation of a finite cyclic group `G`. Suppose there are even
@@ -459,12 +515,15 @@ and positive integers `e` and `o` with `e` even and `o` odd, such that
 `Hᵉ(G,M)` and `Hᵒ(G,M)` are both zero.
 Then `Hⁿ(G,M)` is zero for all `n > 0`.
 -/
-lemma isZero_ofEven_ofOdd {M : Rep R G} {a b : ℕ}
+lemma isZero_ofEven_Odd {M : Rep R G} {a b : ℕ}
     (hₑ : IsZero (groupCohomology M (2 * a + 2)))
     (hₒ : IsZero (groupCohomology M (2 * b + 1))) (n : ℕ) :
     IsZero (groupCohomology M (n + 1)) := by
-  sorry
-
+  obtain hn | hn := n.even_or_odd
+  · refine .of_iso hₒ <| (periodicCohomology_mod2 n (2 * b) ?_).app M
+    grind [Nat.modEq_iff_dvd, Nat.even_iff]
+  · refine .of_iso hₑ <| (periodicCohomology_mod2 n (2 * a + 1) ?_).app M
+    grind [Nat.modEq_iff_dvd, Nat.odd_iff]
 
 end Rep
 
