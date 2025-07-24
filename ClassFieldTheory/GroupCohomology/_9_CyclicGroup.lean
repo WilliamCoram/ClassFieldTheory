@@ -2,7 +2,7 @@ import Mathlib
 import ClassFieldTheory.GroupCohomology._6_LeftRegular
 import ClassFieldTheory.GroupCohomology._7_coind1_and_ind1
 import ClassFieldTheory.GroupCohomology._8_DimensionShift
-import ClassFieldTheory.Mathlib.ModuleCatExactt
+import ClassFieldTheory.Mathlib.ModuleCatExact
 
 /-!
 Let `M : Rep R G`, where `G` is a finite cyclic group.
