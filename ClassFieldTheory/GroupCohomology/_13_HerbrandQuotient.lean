@@ -55,7 +55,7 @@ lemma cardFKerTimesCardFRangeEqCardGMul {G H:Type } [Group G] [Group H] [Finite 
   apply Nat.card_eq_of_bijective _  (MulEquiv.bijective (QuotientGroup.quotientKerEquivRange f))
 
 lemma eqMulOfMulEq (a b c d : Nat) (hab : a = b) (hcd : c = d) : a*c =b*d  := by
-  grinds
+  grind
 
 lemma herbrandQuotient_of_finite [Finite A] : ρ.herbrandQuotient = 1 := by
   /-
@@ -110,21 +110,77 @@ end Representation
 
 namespace Rep
 
+lemma truc (a b :Int) : a= b ↔ a - b =0 := by exact Iff.symm Int.sub_eq_zero
+
 def herbrandQuotient (M : Rep R G) : ℚ :=
     Nat.card (groupCohomology M 2) / Nat.card (groupCohomology M 1)
 
-lemma herbrandQuotient_of : herbrandQuotient (of ρ) = ρ.herbrandQuotient :=
+def equiv0' : ρ.herbrandH0 = ModuleCat.of R (ρ.invariants ⧸ (range ρ.norm).submoduleOf ρ.invariants) := by
+  unfold Representation.herbrandH0 Representation.herbrandZ0 Representation.herbrandB0
+  have : ρ.invariants = ker ρ.oneSubGen := by
+    ext x
+    simp [mem_ker,Representation.oneSubGen, sub_eq_zero]
+    constructor
+    · intro hx
+      rw [hx]
+    · intro hx g
+
+      have : ∀ n : ℤ, (ρ (gen G ^ n)) x = x := by
+        intro n
+        induction n with
+          | zero => simp
+          | succ n => sorry
+          | pred n => sorry
+
+      let ⟨n, (hn : (gen G) ^ n = g)⟩ := Classical.choose_spec (exists_zpow_surjective G) g
+
+      rw [← hn]
+      apply this
+
+  rw [this]
+
+def equiv0 : (TateCohomology 0).obj (of ρ) ≃ ρ.herbrandH0 := by
+  --rw [equiv0]
+  apply Iso.toEquiv
+  --#check (TateCohomology_zero_iso (of ρ)).toEquiv
+  sorry
+
+def equiv1 : (TateCohomology 1).obj (of ρ) ≃ ρ.herbrandH1 := by sorry
+
+--should be somwhere but could not find it
+def TateTwoPeriodic : TateCohomology 2 ≅ (TateCohomology 0 : Rep R G ⥤ ModuleCat R) := by sorry
+
+
+lemma herbrandQuotient_of : herbrandQuotient (of ρ) = ρ.herbrandQuotient := by
   /-
   show that `herbrandH0` and `herbrandH1` are isomorphic to the Tate cohomology groups
   `H⁰` and `H¹`. Then use the periodicity of the Tate cohomology groups.
   -/
-  sorry
+  have : Nat.card (groupCohomology (of ρ) 2) = Nat.card (ρ.herbrandH0) := by
+    let  Tate1IsoCoHom := ((TateCohomology.isoGroupCohomology' 1).app (of ρ)).symm
+    apply Eq.trans
+    exact Nat.card_eq_of_bijective Tate1IsoCoHom.hom (ConcreteCategory.bijective_of_isIso Tate1IsoCoHom.hom)
+    apply Eq.trans
+    exact Nat.card_eq_of_bijective (TateTwoPeriodic.app (of ρ)).hom (ConcreteCategory.bijective_of_isIso (TateTwoPeriodic.app (of ρ)).hom)
+    exact Nat.card_eq_of_bijective (equiv0 ρ) (Equiv.bijective (equiv0 ρ))
 
-lemma herbrandQuotient_of_finite (M : Rep R G) [Finite M] : M.herbrandQuotient = 1 :=
+  have this2 : Nat.card (groupCohomology (of ρ) 1) = Nat.card (ρ.herbrandH1) := by
+    show_term(
+    let  Tate0IsoCoHom := ((TateCohomology.isoGroupCohomology' 0).app (of ρ)).symm
+    apply Eq.trans
+    exact Nat.card_eq_of_bijective Tate0IsoCoHom.hom (ConcreteCategory.bijective_of_isIso Tate0IsoCoHom.hom)
+    exact  Nat.card_eq_of_bijective (equiv1 ρ) (Equiv.bijective (equiv1 ρ)))
+
+  unfold herbrandQuotient Representation.herbrandQuotient
+  rw [this, this2]
+
+lemma herbrandQuotient_of_finite (M : Rep R G) [Finite M] : M.herbrandQuotient = 1 := by
   /-
   This is proved above for `Representation`.
   -/
-  sorry
+  have : (of M.ρ) = M := by rfl
+  rw [← this, herbrandQuotient_of M.ρ]
+  exact Representation.herbrandQuotient_of_finite M.ρ
 
 section six_term_sequence
 variable {S : ShortComplex (Rep R G)} (hS : S.ShortExact)
