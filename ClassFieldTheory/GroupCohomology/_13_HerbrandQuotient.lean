@@ -21,9 +21,24 @@ abbrev herbrandZ1 := ker ρ.norm
 abbrev herbrandB0 := range ρ.norm
 abbrev herbrandB1 := range ρ.oneSubGen
 
-lemma herbrandB0_le_herbrandZ0 : ρ.herbrandB0 ≤ ρ.herbrandZ0 := sorry
+lemma herbrandB0_le_herbrandZ0 : ρ.herbrandB0 ≤ ρ.herbrandZ0 := by
+  intro _ hx
+  let ⟨y, hy⟩ := hx
+  rw [mem_ker, ← hy]
 
-lemma herbrandB1_le_herbrandZ1 : ρ.herbrandB1 ≤ ρ.herbrandZ1 := sorry
+  apply sub_eq_zero_of_eq
+  conv_lhs => rw [← norm_comm ρ (gen G)]
+  simp
+
+lemma herbrandB1_le_herbrandZ1 : ρ.herbrandB1 ≤ ρ.herbrandZ1 := by
+  intro x hx
+  let ⟨y, hy⟩ := hx
+  rw [mem_ker, ← hy]
+
+  simp only [LinearMap.sub_apply, Module.End.one_apply, map_sub]
+  apply sub_eq_zero_of_eq
+  conv_lhs => rw [← norm_comm' ρ (gen G)]
+  simp
 
 abbrev herbrandH0 := ρ.herbrandZ0 ⧸ (ρ.herbrandB0.submoduleOf ρ.herbrandZ0)
 
@@ -31,7 +46,19 @@ abbrev herbrandH1 := ρ.herbrandZ1 ⧸ (ρ.herbrandB1.submoduleOf ρ.herbrandZ1)
 
 def herbrandQuotient : ℚ := Nat.card ρ.herbrandH0 / Nat.card ρ.herbrandH1
 
-lemma herbrandQuotient_of_finite [Finite A] : ρ.herbrandQuotient = 1 := sorry
+@[to_additive cardFKerTimesCardFRangeEqCardGAdd]
+lemma cardFKerTimesCardFRangeEqCardGMul {G H:Type } [Group G] [Group H] [Finite G] ( f : G →*  H): Nat.card f.ker * Nat.card f.range = Nat.card G := by
+  rw [Subgroup.card_eq_card_quotient_mul_card_subgroup f.ker]
+  suffices Nat.card f.range = Nat.card (G ⧸ f.ker) by
+    rw [← this]
+    ring_nf
+  apply Eq.symm
+  apply Nat.card_eq_of_bijective _  (MulEquiv.bijective (QuotientGroup.quotientKerEquivRange f))
+
+lemma eqMulOfMulEq (a b c d : Nat) (hab : a = b) (hcd : c = d) : a*c =b*d  := by
+  grinds
+
+lemma herbrandQuotient_of_finite [Finite A] : ρ.herbrandQuotient = 1 := by
   /-
   Consider the linear maps `f₁ f₂ : M → M` defined to be multiplication by `1 - gen G`
   and norm respectively. The kernel of `f₁` is the submodule of `G`-invariants, and the
@@ -41,6 +68,44 @@ lemma herbrandQuotient_of_finite [Finite A] : ρ.herbrandQuotient = 1 := sorry
 
   The result follows because `|ker fᵢ| * |range fᵢ| = |M|` for `i=1,2`.
   -/
+  unfold herbrandQuotient
+  apply (div_eq_one_iff_eq _ ).2
+  apply congrArg Nat.cast
+
+  have cardH0 : Nat.card ρ.herbrandB0 * Nat.card ρ.herbrandH0 = Nat.card ρ.herbrandZ0 := by
+    rw [Submodule.card_eq_card_quotient_mul_card (ρ.herbrandB0.submoduleOf ρ.herbrandZ0)]
+    apply eqMulOfMulEq
+    · apply Nat.card_congr
+      exact(Submodule.submoduleOfEquivOfLe (herbrandB0_le_herbrandZ0 ρ)).symm.toEquiv
+    · rfl
+
+  have cardH1 : Nat.card ρ.herbrandB1 * Nat.card ρ.herbrandH1 = Nat.card ρ.herbrandZ1 := by
+    rw [Submodule.card_eq_card_quotient_mul_card (ρ.herbrandB1.submoduleOf ρ.herbrandZ1)]
+    apply eqMulOfMulEq
+    · apply Nat.card_congr
+      exact (Submodule.submoduleOfEquivOfLe (herbrandB1_le_herbrandZ1 ρ)).symm.toEquiv
+    · rfl
+
+  have rankTheorem1 : (Nat.card ρ.herbrandZ1) * Nat.card ρ.herbrandB0 = Nat.card A := by exact cardFKerTimesCardFRangeEqCardGAdd (ρ.norm.toAddMonoidHom)
+  have rankTheorem2 : (Nat.card ρ.herbrandZ0) * Nat.card ρ.herbrandB1 = Nat.card A := by exact cardFKerTimesCardFRangeEqCardGAdd (ρ.oneSubGen.toAddMonoidHom)
+
+  suffices (Nat.card ρ.herbrandB1) * (Nat.card ρ.herbrandB0) * Nat.card ρ.herbrandH0 = (Nat.card ρ.herbrandB1) * (Nat.card ρ.herbrandB0) * Nat.card ρ.herbrandH1 by
+    simp only [mul_eq_mul_left_iff] at this
+
+    cases this
+    · assumption
+    · exfalso
+      have : (Nat.card ρ.herbrandB1) * (Nat.card ρ.herbrandB0) > 0 := by
+        apply Nat.mul_pos Nat.card_pos Nat.card_pos
+      linarith
+
+  calc (Nat.card ρ.herbrandB1) * (Nat.card ρ.herbrandB0) * (Nat.card ρ.herbrandH0) = Nat.card A := by rw [mul_assoc, mul_comm, cardH0, ← rankTheorem2]
+
+    _ = (Nat.card ρ.herbrandB1) * (Nat.card ρ.herbrandB0) * (Nat.card ρ.herbrandH1) := by rw [mul_assoc, mul_comm, mul_assoc, mul_comm (Nat.card ρ.herbrandH1), cardH1, ← rankTheorem1, mul_comm]
+
+  apply Nat.cast_ne_zero.mpr
+  apply Nat.card_ne_zero.mpr
+  exact ⟨Nonempty.intro 0, Quotient.finite (ρ.herbrandB1.submoduleOf ρ.herbrandZ1).quotientRel⟩
 
 end Representation
 
