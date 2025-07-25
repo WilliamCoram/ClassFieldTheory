@@ -1,7 +1,6 @@
 import Mathlib
 import ClassFieldTheory.GroupCohomology._9_CyclicGroup
 import ClassFieldTheory.GroupCohomology._4_TateCohomology_def
-import ClassFieldTheory.Mathlib.ModuleCatExact
 
 noncomputable section
 
@@ -85,17 +84,42 @@ def herbrandSixTermSequence : CochainComplex (ModuleCat R) (Fin 6) where
   d_comp_d' i _ _ hij hjk := by
     simp only [ComplexShape.up', ComplexShape.up, Fin.isValue] at hij hjk
     rw [←hjk, ←hij]
+    have : ((Action.res (ModuleCat R) (MonoidHom.id G)).map S.f ≫ S.g) = 0 := by
+        exact S.zero
     fin_cases i
     all_goals
       dsimp
       try simp_rw [← groupCohomology.map_comp]
-    ·
+      dsimp [groupCohomology.map]
+      try simp_rw [this, cochainsMap_zero, HomologicalComplex.homologyMap_zero]
+    · unfold δ periodicCohomology
+      dsimp
+      ext x
+      rw [@ModuleCat.comp_apply]
+      simp
+
       sorry
     ·
       sorry
     ·
       sorry
-    all_goals sorry
+    ·
+      sorry
+
+-- only for testing
+namespace CategoryTheory.ShortComplex
+
+theorem moduleCat_range_le_ker
+     {R : Type} [Ring R] (S : ShortComplex (ModuleCat R)) :
+     LinearMap.range S.f.hom ≤ LinearMap.ker S.g.hom :=
+   fun _ ⟨_, ht⟩ ↦ LinearMap.mem_ker.mpr (ht ▸ CategoryTheory.ShortComplex.moduleCat_zero_apply _ _)
+
+ theorem Exact.moduleCat_of_ker_le_range
+     {R : Type} [Ring R] (S : ShortComplex (ModuleCat R))
+     (h : LinearMap.ker S.g.hom ≤ LinearMap.range S.f.hom) :
+     S.Exact :=
+   ShortComplex.Exact.moduleCat_of_range_eq_ker _ _
+     (le_antisymm S.moduleCat_range_le_ker h)
 
 lemma herbrandSixTermSequence_exactAt (i : Fin 6) : (herbrandSixTermSequence hS).ExactAt i := by
   rw [HomologicalComplex.exactAt_iff]
@@ -103,17 +127,18 @@ lemma herbrandSixTermSequence_exactAt (i : Fin 6) : (herbrandSixTermSequence hS)
   all_goals
     simp
     apply ShortComplex.Exact.moduleCat_of_ker_le_range
-    intro w hw_ker
     simp
-  ·
+  · intro w hw
+    change w ∈ LinearMap.ker _ at hw
+    simp only [Fin.isValue, mem_range]
 
-
-
-
+    sorry
   /-
   It should be possible to get this out of Mathlib.
   -/
-  all_goals sorry
+  sorry
+
+end CategoryTheory.ShortComplex
 
 lemma herbrandQuotient_nonzero_of_shortExact₃
     (h₁ : S.X₁.herbrandQuotient ≠ 0) (h₂ : S.X₂.herbrandQuotient ≠ 0) :
